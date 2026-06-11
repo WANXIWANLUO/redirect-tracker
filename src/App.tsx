@@ -105,14 +105,9 @@ export default function App() {
       }
 
       // Check IP first if enabled
-      if (checkIp) {
+      if (checkIp && window.electronAPI) {
         try {
-          const ipRes = await fetch('/api/check-ip', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ proxy: resolvedProxy }),
-          })
-          const ipData = await ipRes.json()
+          const ipData = await window.electronAPI.checkIp({ proxy: resolvedProxy })
           if (ipData.success && ipData.result?.status === 'success') {
             const ipInfo = ipData.result
             detectedIpVal = `${ipInfo.query} (${ipInfo.country} / ${ipInfo.countryCode})`
@@ -127,19 +122,14 @@ export default function App() {
         }
       }
 
-      const res = await fetch('/api/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url,
-          proxy: resolvedProxy,
-          userAgent: uaConfig?.ua || null,
-          forceParams: forceParams || null,
-          forceHeaders: forceHeaders || null,
-        }),
+      const data = await window.electronAPI!.track({
+        url,
+        proxy: resolvedProxy,
+        userAgent: uaConfig?.ua || null,
+        forceParams: forceParams || null,
+        forceHeaders: forceHeaders || null,
       })
 
-      const data = await res.json()
       if (data.success) {
         const result = data.result as TrackResult
         result.proxyId = selectedProxyId

@@ -1,6 +1,6 @@
-import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { SocksProxyAgent } from 'socks-proxy-agent';
+const axios = require('axios');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
 const FILE_EXTENSIONS = [
   '.exe', '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2',
@@ -117,7 +117,6 @@ function parseHtmlRedirects(html, baseUrl) {
   const setTimeoutRegex = /setTimeout\s*\(\s*function\s*\(\s*\)\s*\{[^}]*location[^}]*\}[^,]*,\s*(\d+)/gi;
   while ((match = setTimeoutRegex.exec(html)) !== null) {
     const delay = parseInt(match[1]) / 1000; // ms to seconds
-    // Extract URL from the location assignment within the setTimeout
     const innerMatch = match[0].match(/location(?:\.href)?\s*=\s*["']([^"']+)["']/i);
     if (innerMatch) {
       let targetUrl = innerMatch[1].trim();
@@ -151,7 +150,6 @@ function collectBody(stream) {
       if (size + chunk.length > MAX_BODY_SIZE) {
         if (!truncated) {
           truncated = true;
-          // Take what we can
           const remaining = MAX_BODY_SIZE - size;
           if (remaining > 0) chunks.push(chunk.slice(0, remaining));
         }
@@ -191,7 +189,7 @@ function createProxyAgent(proxy) {
   return new HttpsProxyAgent(`${protocol}://${auth}${proxy.host}:${proxy.port}`, { keepAlive: true, insecureHTTPParser: true });
 }
 
-export async function trackRedirects(originalUrl, proxy, userAgent, forceParams, forceHeaders, maxSteps = 20, onStep = null) {
+async function trackRedirects(originalUrl, proxy, userAgent, forceParams, forceHeaders, maxSteps = 20, onStep = null) {
   const startTime = Date.now();
   const steps = [];
   let currentUrl = originalUrl;
@@ -200,7 +198,7 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
     ? crypto.randomUUID()
     : Date.now().toString(36) + Math.random().toString(36).slice(2);
 
-  // Parse force params: "k1=v1&k2=v2" → Map
+  // Parse force params: "k1=v1&k2=v2" -> Map
   const fpMap = new Map();
   if (forceParams && typeof forceParams === 'string') {
     for (const pair of forceParams.split('&')) {
@@ -211,7 +209,7 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
     }
   }
 
-  // Parse force headers: "Key: Value\nKey2: Value2" → object
+  // Parse force headers: "Key: Value\nKey2: Value2" -> object
   const fhObj = {};
   if (forceHeaders && typeof forceHeaders === 'string') {
     for (const line of forceHeaders.split('\n')) {
@@ -254,7 +252,6 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
       // Apply force params to current URL
       const effectiveUrl = applyForceParams(currentUrl);
 
-      const isLastStep = (i === maxSteps - 1);
       const axiosConfig = {
         method: 'GET',
         url: effectiveUrl,
@@ -304,25 +301,19 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
       let htmlRedirects = [];
 
       if (isTerminal && isHtmlContent(headers) && !isFile) {
-        // Capture HTML body for final responses
         const result = await collectBody(response.data);
         body = result.body;
         bodyTruncated = result.truncated;
-
-        // Parse for meta-refresh and JS redirects
         htmlRedirects = parseHtmlRedirects(body, currentUrl);
       } else if (isTerminal && !isFile) {
-        // Non-HTML terminal responses - capture a preview
         const result = await collectBody(response.data);
         body = result.body;
         bodyTruncated = result.truncated;
       } else if (isFile) {
-        // File download - don't capture body
         if (response.data && typeof response.data.destroy === 'function') {
           response.data.destroy();
         }
       } else {
-        // 3xx redirect - no need for body
         if (response.data && typeof response.data.destroy === 'function') {
           response.data.destroy();
         }
@@ -338,14 +329,12 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
         protocolChanged: false,
       };
 
-      // Add body for terminal responses
       if (body !== null) {
         step.body = body;
         step.bodyTruncated = bodyTruncated;
         step.contentType = headers['content-type'] || '';
       }
 
-      // Add HTML redirects if found
       if (htmlRedirects.length > 0) {
         step.htmlRedirects = htmlRedirects;
       }
@@ -353,29 +342,24 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
       steps.push(step);
       if (onStep) await onStep(step);
 
-      // If file download, stop
       if (isFile) {
         stoppedReason = '检测到文件下载';
         break;
       }
 
-      // If terminal response, stop
       if (isTerminal) {
-        // If HTML redirects found, note it
         if (htmlRedirects.length > 0) {
           stoppedReason = '到达最终页面（检测到 HTML/JS 跳转）';
         }
         break;
       }
 
-      // Get redirect URL
       const location = headers['location'];
       if (!location) {
         stoppedReason = '重定向响应缺少 Location 头';
         break;
       }
 
-      // Resolve relative URLs
       let redirectUrl;
       try {
         redirectUrl = new URL(location, currentUrl).href;
@@ -383,13 +367,11 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
         redirectUrl = location;
       }
 
-      // Check for protocol change
       if (hasProtocolChanged(currentUrl, redirectUrl)) {
         steps[steps.length - 1].protocolChanged = true;
         const origProto = new URL(currentUrl).protocol;
         const redirProto = location.includes(':') ? location.split(':')[0] + ':' : 'unknown:';
-        stoppedReason = `协议变更: ${origProto} → ${redirProto}`;
-        // 追加最终步骤显示协议变更后的目标URL（直接用原始Location值，避免URL构造器的非标准scheme解析问题）
+        stoppedReason = `协议变更: ${origProto} -> ${redirProto}`;
         const protoStep = {
           url: location,
           statusCode: 0,
@@ -419,7 +401,6 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
           }
         }
 
-        // Try to capture error response body
         let body = null;
         let bodyTruncated = false;
         try {
@@ -482,3 +463,5 @@ export async function trackRedirects(originalUrl, proxy, userAgent, forceParams,
     proxyUsed: proxy ? `${proxy.type}://${proxy.host}:${proxy.port}` : null,
   };
 }
+
+module.exports = { trackRedirects };

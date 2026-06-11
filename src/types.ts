@@ -63,3 +63,45 @@ export interface UAConfig {
 }
 
 export type ThemeMode = 'light' | 'dark';
+
+// ===== Electron IPC 类型 =====
+
+export interface TrackOptions {
+  url: string;
+  proxy: ProxyConfig | null;
+  userAgent: string | null;
+  forceParams: string | null;
+  forceHeaders: string | null;
+}
+
+export interface TrackResponse {
+  success: boolean;
+  result?: TrackResult;
+  error?: string;
+}
+
+export interface CheckIpOptions {
+  proxy: ProxyConfig | null;
+}
+
+export interface CheckIpResult {
+  status: string;
+  country: string;
+  countryCode: string;
+  query: string;
+}
+
+export interface CheckIpResponse {
+  success: boolean;
+  result?: CheckIpResult;
+  error?: string;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      track: (options: TrackOptions) => Promise<TrackResponse>;
+      checkIp: (options: CheckIpOptions) => Promise<CheckIpResponse>;
+    };
+  }
+}
