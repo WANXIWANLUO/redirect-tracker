@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import { TrackResult, ProxyConfig, UAConfig, ThemeMode } from './types'
+import { invoke } from '@tauri-apps/api/core'
+import { TrackResult, ProxyConfig, UAConfig, ThemeMode, CheckIpResponse, TrackStepResponse } from './types'
 import { load, save, replacePlaceholders, resetStackRandom } from './utils'
 import Sidebar from './components/Sidebar'
 import TrackInput from './components/TrackInput'
@@ -32,6 +33,8 @@ export default function App() {
   const [showProxyManager, setShowProxyManager] = useState(false)
   const [showUaManager, setShowUaManager] = useState(false)
   const [inputUrl, setInputUrl] = useState('')
+
+
 
   // Apply theme
   useEffect(() => {
@@ -91,6 +94,7 @@ export default function App() {
     setDetectedIp('')
     resetStackRandom()
 
+    const trackId = crypto.randomUUID?.() ?? Date.now().toString(36)
     let detectedIpVal = ''
 
     try {
@@ -105,9 +109,9 @@ export default function App() {
       }
 
       // Check IP first if enabled
-      if (checkIp && window.electronAPI) {
+      if (checkIp) {
         try {
-          const ipData = await window.electronAPI.checkIp({ proxy: resolvedProxy })
+          const ipData = await invoke<CheckIpResponse>('check_ip', { proxy: resolvedProxy })
           if (ipData.success && ipData.result?.status === 'success') {
             const ipInfo = ipData.result
             detectedIpVal = `${ipInfo.query} (${ipInfo.country} / ${ipInfo.countryCode})`
@@ -122,37 +126,96 @@ export default function App() {
         }
       }
 
-      const data = await window.electronAPI!.track({
-        url,
-        proxy: resolvedProxy,
-        userAgent: uaConfig?.ua || null,
-        forceParams: forceParams || null,
-        forceHeaders: forceHeaders || null,
-      })
+      // Step-by-step tracking: each invoke = one HTTP request, renders immediately
+      let currentUrl = url
+      let cookieHeader: string | null = null
+      const steps: RedirectStep[] = []
+      let stoppedReason = ''
+      const startTime = Date.now()
 
-      if (data.success) {
-        const result = data.result as TrackResult
-        result.proxyId = selectedProxyId
-        result.uaId = selectedUaId
-        result.countryUsed = country
-        result.forceParamsUsed = forceParams
-        result.forceHeadersUsed = forceHeaders
-        result.checkIpUsed = checkIp
-        result.detectedIp = detectedIpVal || undefined
-        result.alias = generateAlias(result)
-        setCurrentResult(result)
-        setHistory(prev => {
-          const idx = prev.findIndex(h => h.originalUrl === url)
-          if (idx >= 0) {
-            const next = [...prev]
-            next[idx] = result
-            return next
-          }
-          return [result, ...prev]
+      for (let i = 0; i < 20; i++) {
+        const data = await invoke<TrackStepResponse>('track_step', {
+          url: currentUrl,
+          proxy: resolvedProxy,
+          userAgent: uaConfig?.ua || null,
+          forceParams: forceParams || null,
+          forceHeaders: forceHeaders || null,
+          cookieHeader: cookieHeader,
         })
-      } else {
-        alert(data.error || '追踪失败')
+
+        steps.push(data.step)
+
+        // If protocol changed, add a synthetic step showing the final URL
+        if (data.step.protocolChanged && data.nextUrl) {
+          steps.push({
+            url: data.nextUrl,
+            statusCode: 0,
+            statusText: 'Protocol Changed',
+            responseTime: 0,
+            headers: {},
+            isFileDownload: false,
+            protocolChanged: false,
+          } as RedirectStep)
+        }
+
+        // Update UI immediately after each step (await yields to React render)
+        const finalUrl = data.step.protocolChanged && data.nextUrl ? data.nextUrl : data.step.url
+        setCurrentResult({
+          id: trackId,
+          originalUrl: url,
+          steps: [...steps],
+          finalUrl,
+          totalTime: Date.now() - startTime,
+          stoppedReason: data.stoppedReason || '',
+          timestamp: new Date().toISOString(),
+          proxyUsed: resolvedProxy
+            ? `${resolvedProxy.type}://${resolvedProxy.host}:${resolvedProxy.port}`
+            : null,
+        } as TrackResult)
+
+        if (data.done) {
+          stoppedReason = data.stoppedReason || ''
+          break
+        }
+
+        currentUrl = data.nextUrl!
+        cookieHeader = data.cookieHeaders
+        if (i === 19) {
+          stoppedReason = '达到最大追踪次数 (20)'
+        }
       }
+
+      // Finalize and save to history
+      const finalResult: TrackResult = {
+        id: trackId,
+        originalUrl: url,
+        steps,
+        finalUrl: steps.length > 0 ? steps[steps.length - 1].url : url,
+        totalTime: Date.now() - startTime,
+        stoppedReason,
+        timestamp: new Date().toISOString(),
+        proxyUsed: resolvedProxy
+          ? `${resolvedProxy.type}://${resolvedProxy.host}:${resolvedProxy.port}`
+          : null,
+        proxyId: selectedProxyId,
+        uaId: selectedUaId,
+        countryUsed: country,
+        forceParamsUsed: forceParams,
+        forceHeadersUsed: forceHeaders,
+        checkIpUsed: checkIp,
+        detectedIp: detectedIpVal || undefined,
+      }
+      finalResult.alias = generateAlias(finalResult)
+      setCurrentResult(finalResult)
+      setHistory(prev => {
+        const idx = prev.findIndex(h => h.originalUrl === url)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = finalResult
+          return next
+        }
+        return [finalResult, ...prev]
+      })
     } catch (err) {
       alert('请求失败: ' + (err instanceof Error ? err.message : String(err)))
     } finally {

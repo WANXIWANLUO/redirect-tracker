@@ -64,7 +64,7 @@ export interface UAConfig {
 
 export type ThemeMode = 'light' | 'dark';
 
-// ===== Electron IPC 类型 =====
+// ===== Tauri IPC 类型 =====
 
 export interface TrackOptions {
   url: string;
@@ -80,10 +80,6 @@ export interface TrackResponse {
   error?: string;
 }
 
-export interface CheckIpOptions {
-  proxy: ProxyConfig | null;
-}
-
 export interface CheckIpResult {
   status: string;
   country: string;
@@ -97,11 +93,24 @@ export interface CheckIpResponse {
   error?: string;
 }
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      track: (options: TrackOptions) => Promise<TrackResponse>;
-      checkIp: (options: CheckIpOptions) => Promise<CheckIpResponse>;
-    };
-  }
+// ===== Tauri 事件类型 =====
+
+export interface TrackStepEvent {
+  id: string;
+  stepIndex: number;
+  step: RedirectStep;
+}
+
+export interface TrackDoneEvent {
+  id: string;
+  result: TrackResult;
+}
+
+/** Response from a single `track_step` invoke */
+export interface TrackStepResponse {
+  step: RedirectStep;
+  nextUrl: string | null;
+  done: boolean;
+  stoppedReason: string | null;
+  cookieHeaders: string | null;
 }

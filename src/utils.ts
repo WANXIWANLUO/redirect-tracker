@@ -1,4 +1,4 @@
-const PREFIX = 'redirect-tracker:';
+const PREFIX = 'ce-tiaozhuan:';
 
 export function load<T>(key: string, fallback: T): T {
   try {

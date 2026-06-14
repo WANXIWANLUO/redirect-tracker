@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { UAConfig } from '../types'
 
 interface UAManagerProps {
@@ -83,6 +83,23 @@ export default function UAManager({ uaList, onSave, onDelete, onImport, onClose 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<UAConfig, 'id'>>(emptyUa)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const formRef = useRef<HTMLDivElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
+  // 编辑时自动滚动到底部并聚焦第一个输入框
+  useEffect(() => {
+    if (editingId) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+          }
+          nameInputRef.current?.focus()
+        })
+      })
+    }
+  }, [editingId])
 
   const handleNew = () => {
     setEditingId('new')
@@ -155,7 +172,7 @@ export default function UAManager({ uaList, onSave, onDelete, onImport, onClose 
           <button onClick={onClose} className="text-text-quaternary hover:text-text-secondary transition-colors">✕</button>
         </div>
 
-        <div className="px-6 py-4 max-h-[65vh] overflow-y-auto space-y-4">
+        <div ref={scrollRef} className="px-6 py-4 max-h-[65vh] overflow-y-auto space-y-4">
           {/* Import/Export buttons */}
           {uaList.length > 0 && !editingId && (
             <div className="flex items-center gap-2">
@@ -232,7 +249,7 @@ export default function UAManager({ uaList, onSave, onDelete, onImport, onClose 
 
           {/* Add/Edit form */}
           {editingId ? (
-            <div className="bg-white/[0.02] border border-border-subtle rounded-lg p-4 space-y-3">
+            <div ref={formRef} className="bg-white/[0.02] border border-border-subtle rounded-lg p-4 space-y-3">
               <h3 className="text-sm text-text-secondary font-medium">
                 {editingId === 'new' ? '添加 UA' : '编辑 UA'}
               </h3>
@@ -240,6 +257,7 @@ export default function UAManager({ uaList, onSave, onDelete, onImport, onClose 
               <div>
                 <label className="text-xs text-text-quaternary block mb-1">名称</label>
                 <input
+                  ref={nameInputRef}
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}

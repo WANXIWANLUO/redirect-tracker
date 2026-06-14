@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TrackResult, RedirectStep, HtmlRedirect } from '../types'
 
 interface RedirectChainProps {
@@ -8,7 +8,7 @@ interface RedirectChainProps {
 
 /** 需要高亮的关键参数名列表 */
 const HIGHLIGHT_PARAMS = new Set([
-  'idfa', 'gaid', 'idfv', 'ip', 'af_ip', 'af_id',
+  'idfa', 'gaid', 'idfv', 'adid', 'ip', 'af_ip', 'af_id',
   'offer_id', 'click_id', 'campaign_id', 'af_clickid',
   'af_siteid', 'af_channel', 'af_c_id', 'af_adset',
   'google_aid', 'android_id', 'advertising_id',
@@ -192,6 +192,15 @@ function BodyPreview({ body, contentType, truncated }: { body: string; contentTy
 function StepCard({ step, index, isLast, defaultExpanded }: { step: RedirectStep; index: number; isLast: boolean; defaultExpanded: boolean }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [showBody, setShowBody] = useState(defaultExpanded)
+
+  // Auto-collapse when no longer the last step (new step appeared)
+  useEffect(() => {
+    if (!isLast) {
+      setExpanded(false)
+      setShowBody(false)
+    }
+  }, [isLast])
+
   const isTerminal = step.statusCode < 300 || step.statusCode >= 400
   const hasBody = !!step.body
   const hasHtmlRedirects = step.htmlRedirects && step.htmlRedirects.length > 0
@@ -324,7 +333,7 @@ function StepCard({ step, index, isLast, defaultExpanded }: { step: RedirectStep
 }
 
 export default function RedirectChain({ result, isTracking }: RedirectChainProps) {
-  if (isTracking) {
+  if (!result && isTracking) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -340,7 +349,7 @@ export default function RedirectChain({ result, isTracking }: RedirectChainProps
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
           <div className="text-4xl mb-4 opacity-20">🔗</div>
-          <p className="text-text-secondary text-sm">输入 URL 开始追踪重定向链路</p>
+          <p className="text-text-secondary text-sm">输入 URL 开始追踪重定向链路 - 测跳转</p>
           <p className="text-text-quaternary text-xs mt-2">
             支持 HTTP 3xx 重定向追踪，自动检测 HTML meta-refresh 和 JavaScript 跳转
           </p>
@@ -376,10 +385,16 @@ export default function RedirectChain({ result, isTracking }: RedirectChainProps
             key={i}
             step={step}
             index={i}
-            isLast={i === result.steps.length - 1}
+            isLast={i === result.steps.length - 1 && !isTracking}
             defaultExpanded={i === result.steps.length - 1}
           />
         ))}
+        {isTracking && (
+          <div className="flex items-center gap-3 py-3 px-4 bg-brand/5 border border-brand/20 rounded-lg">
+            <div className="w-5 h-5 border-2 border-brand/30 border-t-brand-accent rounded-full animate-spin" />
+            <span className="text-sm text-brand-accent">正在追踪下一步...</span>
+          </div>
+        )}
       </div>
     </div>
   )

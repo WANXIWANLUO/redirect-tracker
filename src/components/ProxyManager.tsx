@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { ProxyConfig } from '../types'
 
 interface ProxyManagerProps {
@@ -23,6 +23,23 @@ export default function ProxyManager({ proxies, onSave, onDelete, onImport, onCl
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<ProxyConfig, 'id'>>(emptyProxy)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const formRef = useRef<HTMLDivElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
+  // 编辑时自动滚动到底部并聚焦第一个输入框
+  useEffect(() => {
+    if (editingId) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+          }
+          nameInputRef.current?.focus()
+        })
+      })
+    }
+  }, [editingId])
 
   const handleNew = () => {
     setEditingId('new')
@@ -98,7 +115,7 @@ export default function ProxyManager({ proxies, onSave, onDelete, onImport, onCl
           <button onClick={onClose} className="text-text-quaternary hover:text-text-secondary transition-colors">✕</button>
         </div>
 
-        <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+        <div ref={scrollRef} className="px-6 py-4 max-h-[60vh] overflow-y-auto">
           {/* Import/Export buttons */}
           {proxies.length > 0 && !editingId && (
             <div className="flex items-center gap-2 mb-4">
@@ -161,7 +178,7 @@ export default function ProxyManager({ proxies, onSave, onDelete, onImport, onCl
 
           {/* Add/Edit form */}
           {editingId ? (
-            <div className="bg-white/[0.02] border border-border-subtle rounded-lg p-4 space-y-3">
+            <div ref={formRef} className="bg-white/[0.02] border border-border-subtle rounded-lg p-4 space-y-3">
               <h3 className="text-sm text-text-secondary font-medium">
                 {editingId === 'new' ? '添加代理' : '编辑代理'}
               </h3>
@@ -170,6 +187,7 @@ export default function ProxyManager({ proxies, onSave, onDelete, onImport, onCl
                 <div>
                   <label className="text-xs text-text-quaternary block mb-1">名称</label>
                   <input
+                    ref={nameInputRef}
                     type="text"
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -208,7 +226,7 @@ export default function ProxyManager({ proxies, onSave, onDelete, onImport, onCl
                     className="w-full bg-white/[0.02] border border-border-standard rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-accent/50 font-mono"
                   />
                 </div>
-                <div>
+                <div className="col-span-2">
                   <label className="text-xs text-text-quaternary block mb-1">用户名 (可选)</label>
                   <input
                     type="text"
@@ -218,7 +236,7 @@ export default function ProxyManager({ proxies, onSave, onDelete, onImport, onCl
                     placeholder="支持 {country} {random} {stack}"
                   />
                 </div>
-                <div>
+                <div className="col-span-2">
                   <label className="text-xs text-text-quaternary block mb-1">密码 (可选)</label>
                   <input
                     type="text"
