@@ -62,7 +62,7 @@ export interface UAConfig {
   ua: string;
 }
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'dim' | 'midnight' | 'ocean';
 
 // ===== Tauri IPC 类型 =====
 

@@ -31,6 +31,90 @@
   --font-mono: 'Berkeley Mono', 'SF Mono', 'Fira Code', 'Consolas', ui-monospace, monospace;
 }
 
+/* === Dim Theme — 柔和暗色 (比纯黑亮，舒适护眼) === */
+[data-theme="dim"] {
+  --color-bg-deep: #1a1b1e;
+  --color-bg-marketing: #1e1f22;
+  --color-bg-panel: #24252a;
+  --color-bg-surface: #2b2c31;
+  --color-bg-elevated: #36373d;
+
+  --color-text-primary: #e8eaed;
+  --color-text-secondary: #bdc1c6;
+  --color-text-tertiary: #8b8f96;
+  --color-text-quaternary: #63666c;
+
+  --color-brand: #6c72cb;
+  --color-brand-accent: #818cf8;
+  --color-brand-hover: #a5b4fc;
+
+  --color-success: #34d399;
+  --color-success-dim: #10b981;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #818cf8;
+
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-standard: rgba(255, 255, 255, 0.1);
+  --color-border-prominent: #3a3b42;
+}
+
+/* === Midnight Theme — 深蓝暗色 (深邃静谧) === */
+[data-theme="midnight"] {
+  --color-bg-deep: #0a0e1a;
+  --color-bg-marketing: #0d1121;
+  --color-bg-panel: #111631;
+  --color-bg-surface: #161c3d;
+  --color-bg-elevated: #1e2554;
+
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #b8c4d6;
+  --color-text-tertiary: #7b8ba8;
+  --color-text-quaternary: #4f5e7a;
+
+  --color-brand: #6366f1;
+  --color-brand-accent: #818cf8;
+  --color-brand-hover: #a5b4fc;
+
+  --color-success: #34d399;
+  --color-success-dim: #10b981;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #818cf8;
+
+  --color-border-subtle: rgba(99, 102, 241, 0.08);
+  --color-border-standard: rgba(99, 102, 241, 0.12);
+  --color-border-prominent: #252c5a;
+}
+
+/* === Ocean Theme — 海蓝暗色 (清新海洋风) === */
+[data-theme="ocean"] {
+  --color-bg-deep: #0a1628;
+  --color-bg-marketing: #0e1a30;
+  --color-bg-panel: #12203c;
+  --color-bg-surface: #162848;
+  --color-bg-elevated: #1c3358;
+
+  --color-text-primary: #e0f2fe;
+  --color-text-secondary: #b4d8f0;
+  --color-text-tertiary: #7db4d8;
+  --color-text-quaternary: #4a7a9e;
+
+  --color-brand: #0ea5e9;
+  --color-brand-accent: #38bdf8;
+  --color-brand-hover: #7dd3fc;
+
+  --color-success: #2dd4bf;
+  --color-success-dim: #14b8a6;
+  --color-warning: #fbbf24;
+  --color-error: #fb7185;
+  --color-info: #38bdf8;
+
+  --color-border-subtle: rgba(14, 165, 233, 0.08);
+  --color-border-standard: rgba(14, 165, 233, 0.12);
+  --color-border-prominent: #1e3f68;
+}
+
 /* === Light Theme Override === */
 [data-theme="light"] {
   --color-bg-deep: #f8f9fa;
@@ -88,6 +172,57 @@
 }
 [data-theme="light"] .bg-white\/\[0\.04\]:hover {
   background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Dim theme rgba overrides */
+[data-theme="dim"] .bg-white\/\[0\.02\] {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+[data-theme="dim"] .bg-white\/\[0\.03\] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+[data-theme="dim"] .bg-white\/\[0\.04\] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dim"] .bg-white\/\[0\.06\] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dim"] .bg-white\/\[0\.04\]:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Midnight theme rgba overrides */
+[data-theme="midnight"] .bg-white\/\[0\.02\] {
+  background-color: rgba(99, 102, 241, 0.06) !important;
+}
+[data-theme="midnight"] .bg-white\/\[0\.03\] {
+  background-color: rgba(99, 102, 241, 0.08) !important;
+}
+[data-theme="midnight"] .bg-white\/\[0\.04\] {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+}
+[data-theme="midnight"] .bg-white\/\[0\.06\] {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+}
+[data-theme="midnight"] .bg-white\/\[0\.04\]:hover {
+  background-color: rgba(99, 102, 241, 0.16) !important;
+}
+
+/* Ocean theme rgba overrides */
+[data-theme="ocean"] .bg-white\/\[0\.02\] {
+  background-color: rgba(14, 165, 233, 0.06) !important;
+}
+[data-theme="ocean"] .bg-white\/\[0\.03\] {
+  background-color: rgba(14, 165, 233, 0.08) !important;
+}
+[data-theme="ocean"] .bg-white\/\[0\.04\] {
+  background-color: rgba(14, 165, 233, 0.1) !important;
+}
+[data-theme="ocean"] .bg-white\/\[0\.06\] {
+  background-color: rgba(14, 165, 233, 0.12) !important;
+}
+[data-theme="ocean"] .bg-white\/\[0\.04\]:hover {
+  background-color: rgba(14, 165, 233, 0.16) !important;
 }
 
 /* Select & Option theme fix */

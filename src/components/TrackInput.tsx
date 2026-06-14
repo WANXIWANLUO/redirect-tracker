@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ProxyConfig, UAConfig, ThemeMode } from '../types'
 
 interface TrackInputProps {
@@ -23,7 +24,7 @@ interface TrackInputProps {
   onTrack: (url: string) => void
   isTracking: boolean
   theme: ThemeMode
-  onToggleTheme: () => void
+  onChangeTheme: (theme: ThemeMode) => void
 }
 
 export default function TrackInput({
@@ -35,7 +36,7 @@ export default function TrackInput({
   forceHeaders, onChangeForceHeaders,
   checkIp, onToggleCheckIp, detectedIp,
   onTrack, isTracking,
-  theme, onToggleTheme,
+  theme, onChangeTheme,
 }: TrackInputProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +47,7 @@ export default function TrackInput({
 
   const selectedProxy = proxies.find(p => p.id === selectedProxyId)
   const selectedUa = uaList.find(u => u.id === selectedUaId)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   return (
     <div className="border-b border-border-subtle bg-bg-panel/50 px-6 py-4">
@@ -169,21 +171,44 @@ export default function TrackInput({
             <span className="text-xs text-text-quaternary whitespace-nowrap">查看IP</span>
           </label>
 
+          {/* Divider */}
+          <div className="w-px h-6 bg-border-standard flex-shrink-0" />
+
+          {/* Advanced toggle */}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(v => !v)}
+            className={`border rounded px-2 py-1 text-xs text-text-secondary hover:bg-white/[0.04] hover:text-text-primary transition-colors flex-shrink-0 ${showAdvanced ? 'border-brand-accent/30 text-brand-accent' : 'border-border-standard'}`}
+            title="强传参数 / 强传头"
+          >
+            更多{showAdvanced ? '▲' : '▼'}
+          </button>
+
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Theme toggle */}
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="bg-white/[0.02] border border-border-standard rounded-md px-3 py-2 text-sm text-text-secondary hover:bg-white/[0.04] hover:text-text-primary transition-colors flex-shrink-0"
-            title={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+          {/* Theme selector */}
+          <div className="relative flex-shrink-0">
+            <select
+              value={theme}
+              onChange={e => onChangeTheme(e.target.value as ThemeMode)}
+              className="appearance-none bg-white/[0.02] border border-border-standard rounded px-2 py-1 pr-6 text-xs text-text-secondary focus:outline-none focus:border-brand-accent/50 cursor-pointer transition-colors"
+              title="选择主题"
+            >
+              <option value="light">浅色</option>
+              <option value="dim">暗色</option>
+              <option value="dark">深黑</option>
+              <option value="midnight">午夜蓝</option>
+              <option value="ocean">海洋蓝</option>
+            </select>
+            <svg className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-quaternary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
 
-        {/* Row 3: Force Params + Force Headers */}
+        {/* Row 3: Force Params + Force Headers (collapsible) */}
+        {showAdvanced && (
         <div className="flex items-center gap-3 flex-wrap">
           {/* Force Params */}
           <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
@@ -211,6 +236,7 @@ export default function TrackInput({
             />
           </div>
         </div>
+        )}
       </form>
 
       {/* Active indicators */}

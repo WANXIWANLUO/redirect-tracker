@@ -1,6 +1,6 @@
 [package]
 name = "ce-tiaozhuan"
-version = "0.1.0"
+version = "1.3.3"
 description = "测跳转 - URL 重定向链路追踪工具"
 authors = ["you"]
 license = ""
@@ -23,11 +23,14 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
-reqwest = { version = "0.12", features = ["stream", "socks", "cookies", "gzip"] }
+reqwest = { version = "0.12", features = ["stream", "socks", "cookies", "gzip", "json"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 regex = "1"
 url = "2"
 uuid = { version = "1", features = ["v4"] }
+futures-util = "0.3"
+tauri-plugin-dialog = "2.7.1"
+tauri-plugin-fs = "2.5.1"
 
 [profile.release]
 strip = true        # 去除符号信息，大幅减小体积

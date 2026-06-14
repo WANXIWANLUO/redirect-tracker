@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { ProxyConfig } from '../types'
 
 interface ProxyManagerProps {
@@ -69,15 +71,15 @@ export default function ProxyManager({ proxies, onSave, onDelete, onImport, onCl
     setEditingId(null)
   }
 
-  const handleExport = () => {
-    const json = JSON.stringify(proxies, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `proxies_${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleExport = async () => {
+    const filePath = await save({
+      defaultPath: `proxies_${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (filePath) {
+      const json = JSON.stringify(proxies, null, 2)
+      await writeTextFile(filePath, json)
+    }
   }
 
   const handleImportClick = () => {

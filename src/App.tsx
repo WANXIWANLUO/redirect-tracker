@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { getVersion } from '@tauri-apps/api/app'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { TrackResult, ProxyConfig, UAConfig, ThemeMode, CheckIpResponse, TrackStepResponse } from './types'
 import { load, save, replacePlaceholders, resetStackRandom } from './utils'
 import Sidebar from './components/Sidebar'
@@ -7,6 +9,19 @@ import TrackInput from './components/TrackInput'
 import RedirectChain from './components/RedirectChain'
 import ProxyManager from './components/ProxyManager'
 import UAManager from './components/UAManager'
+import UpdateModal from './components/UpdateModal'
+
+interface UpdateInfo {
+  available: boolean
+  currentVersion: string
+  latestVersion: string
+  downloadUrl: string
+  releaseNotes: string
+  fileName: string
+}
+
+const LAST_CHECK_KEY = 'updater_last_check'
+const THROTTLE_MS = 30 * 60 * 1000 // 30 minutes
 
 export default function App() {
   // Theme — default light
@@ -18,12 +33,12 @@ export default function App() {
   const [uaList, setUaList] = useState<UAConfig[]>(() => load('uaList', []))
   const [selectedProxyId, setSelectedProxyId] = useState<string | null>(() => load('selectedProxyId', null))
   const [selectedUaId, setSelectedUaId] = useState<string | null>(() => load('selectedUaId', null))
-  const [country, setCountry] = useState<string>(() => load('country', ''))
+  const [country, setCountry] = useState<string>(() => load('country', 'US'))
 
   // Force params & headers & checkIp
   const [forceParams, setForceParams] = useState<string>(() => load('forceParams', ''))
   const [forceHeaders, setForceHeaders] = useState<string>(() => load('forceHeaders', ''))
-  const [checkIp, setCheckIp] = useState<boolean>(() => load('checkIp', false))
+  const [checkIp, setCheckIp] = useState<boolean>(() => load('checkIp', true))
   const [detectedIp, setDetectedIp] = useState<string>('')
 
   // Ephemeral state
@@ -33,6 +48,7 @@ export default function App() {
   const [showProxyManager, setShowProxyManager] = useState(false)
   const [showUaManager, setShowUaManager] = useState(false)
   const [inputUrl, setInputUrl] = useState('')
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
 
 
 
@@ -41,6 +57,44 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme)
     save('theme', theme)
   }, [theme])
+
+  // Set window title with version
+  useEffect(() => {
+    getVersion().then(v => {
+      getCurrentWindow().setTitle(`测跳转 v${v}`)
+    })
+  }, [])
+
+  // Async update check on startup (30-min throttle)
+  useEffect(() => {
+    const checkForUpdate = async () => {
+      try {
+        const lastCheck = localStorage.getItem(LAST_CHECK_KEY)
+        const now = Date.now()
+
+        if (lastCheck && now - parseInt(lastCheck) < THROTTLE_MS) {
+          console.log('[Updater] 30分钟内已检测过，跳过')
+          return
+        }
+
+        console.log('[Updater] 开始检测更新...')
+        const info = await invoke<UpdateInfo>('check_update')
+        console.log('[Updater] 检测结果:', info)
+        localStorage.setItem(LAST_CHECK_KEY, now.toString())
+
+        if (info.available) {
+          console.log('[Updater] 发现新版本:', info.latestVersion)
+          setUpdateInfo(info)
+        } else {
+          console.log('[Updater] 已是最新版本')
+        }
+      } catch (err) {
+        console.error('[Updater] 检测失败:', err)
+      }
+    }
+
+    checkForUpdate()
+  }, [])
 
   // Persist state changes
   useEffect(() => { save('history', history) }, [history])
@@ -109,6 +163,7 @@ export default function App() {
       }
 
       // Check IP first if enabled
+      let ipCountryMismatch = false
       if (checkIp) {
         try {
           const ipData = await invoke<CheckIpResponse>('check_ip', { proxy: resolvedProxy })
@@ -116,6 +171,10 @@ export default function App() {
             const ipInfo = ipData.result
             detectedIpVal = `${ipInfo.query} (${ipInfo.country} / ${ipInfo.countryCode})`
             setDetectedIp(detectedIpVal)
+            // If proxy is selected (not direct) and country doesn't match, stop tracking
+            if (resolvedProxy && country && ipInfo.countryCode.toUpperCase() !== country.toUpperCase()) {
+              ipCountryMismatch = true
+            }
           } else {
             detectedIpVal = 'IP 检查失败'
             setDetectedIp(detectedIpVal)
@@ -124,6 +183,41 @@ export default function App() {
           detectedIpVal = 'IP 检查失败'
           setDetectedIp(detectedIpVal)
         }
+      }
+
+      // Stop tracking if IP country mismatch
+      if (ipCountryMismatch) {
+        const finalResult: TrackResult = {
+          id: trackId,
+          originalUrl: url,
+          steps: [],
+          finalUrl: url,
+          totalTime: 0,
+          stoppedReason: `IP 地区不匹配: 期望 ${country.toUpperCase()}，检测到 ${detectedIpVal}`,
+          timestamp: new Date().toISOString(),
+          proxyUsed: resolvedProxy
+            ? `${resolvedProxy.type}://${resolvedProxy.host}:${resolvedProxy.port}`
+            : null,
+          proxyId: selectedProxyId,
+          uaId: selectedUaId,
+          countryUsed: country,
+          forceParamsUsed: forceParams,
+          forceHeadersUsed: forceHeaders,
+          checkIpUsed: checkIp,
+          detectedIp: detectedIpVal || undefined,
+        }
+        finalResult.alias = generateAlias(finalResult)
+        setCurrentResult(finalResult)
+        setHistory(prev => {
+          const idx = prev.findIndex(h => h.originalUrl === url)
+          if (idx >= 0) {
+            const next = [...prev]
+            next[idx] = finalResult
+            return next
+          }
+          return [finalResult, ...prev]
+        })
+        return
       }
 
       // Step-by-step tracking: each invoke = one HTTP request, renders immediately
@@ -351,7 +445,7 @@ export default function App() {
           onTrack={handleTrack}
           isTracking={isTracking}
           theme={theme}
-          onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+          onChangeTheme={setTheme}
         />
 
         {/* Redirect chain display */}
@@ -381,6 +475,11 @@ export default function App() {
           onImport={handleImportUas}
           onClose={() => setShowUaManager(false)}
         />
+      )}
+
+      {/* Update modal */}
+      {updateInfo && (
+        <UpdateModal info={updateInfo} onClose={() => setUpdateInfo(null)} />
       )}
     </div>
   )

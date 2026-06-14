@@ -2,6 +2,7 @@ use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Write;
 use std::sync::LazyLock;
 use std::time::Instant;
 use tauri::{Emitter, Manager};
@@ -1165,6 +1166,169 @@ fn is_leap(year: i64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
+// ─── GitHub Update Check ──────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateInfo {
+    pub available: bool,
+    #[serde(rename = "currentVersion")]
+    pub current_version: String,
+    #[serde(rename = "latestVersion")]
+    pub latest_version: String,
+    #[serde(rename = "downloadUrl")]
+    pub download_url: String,
+    #[serde(rename = "releaseNotes")]
+    pub release_notes: String,
+    #[serde(rename = "fileName")]
+    pub file_name: String,
+}
+
+/// Compare semver versions: returns true if `new` > `old`
+fn is_newer_version(new: &str, old: &str) -> bool {
+    let parse = |v: &str| -> Vec<u32> {
+        v.trim_start_matches('v')
+            .split('.')
+            .filter_map(|s| s.parse().ok())
+            .collect()
+    };
+    let new_parts = parse(new);
+    let old_parts = parse(old);
+    for i in 0..std::cmp::max(new_parts.len(), old_parts.len()) {
+        let n = new_parts.get(i).unwrap_or(&0);
+        let o = old_parts.get(i).unwrap_or(&0);
+        if n > o {
+            return true;
+        }
+        if n < o {
+            return false;
+        }
+    }
+    false
+}
+
+#[tauri::command]
+async fn check_update() -> Result<UpdateInfo, String> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get("https://api.github.com/repos/WANXIWANLUO/redirect-tracker/releases/latest")
+        .header("User-Agent", "ce-tiaozhuan-updater")
+        .send()
+        .await
+        .map_err(|e| format!("检查更新失败: {}", e))?;
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("解析响应失败: {}", e))?;
+
+    let tag_name = json["tag_name"]
+        .as_str()
+        .unwrap_or("")
+        .trim_start_matches('v');
+    let current = env!("CARGO_PKG_VERSION");
+
+    log::info!(
+        "[Updater] GitHub tag: {}, Local version: {}",
+        tag_name,
+        current
+    );
+
+    let available = is_newer_version(tag_name, current);
+
+    let asset = json["assets"].as_array().and_then(|a| a.first());
+    let download_url = asset
+        .and_then(|a| a["browser_download_url"].as_str())
+        .unwrap_or("")
+        .to_string();
+    let file_name = asset
+        .and_then(|a| a["name"].as_str())
+        .unwrap_or("update.exe")
+        .to_string();
+
+    let release_notes = json["body"].as_str().unwrap_or("").to_string();
+
+    Ok(UpdateInfo {
+        available,
+        current_version: current.to_string(),
+        latest_version: tag_name.to_string(),
+        download_url,
+        release_notes,
+        file_name,
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadProgress {
+    #[serde(rename = "downloaded")]
+    pub downloaded: u64,
+    #[serde(rename = "total")]
+    pub total: u64,
+    #[serde(rename = "percent")]
+    pub percent: f64,
+}
+
+#[tauri::command]
+async fn download_update(app_handle: tauri::AppHandle, url: String, file_name: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("下载失败: {}", e))?;
+
+    let total_size = resp.content_length().unwrap_or(0);
+
+    let temp_dir = std::env::temp_dir().join("ce-tiaozhuan-update");
+    std::fs::create_dir_all(&temp_dir).map_err(|e| format!("创建临时目录失败: {}", e))?;
+
+    let filepath = temp_dir.join(&file_name);
+    let mut file =
+        std::fs::File::create(&filepath).map_err(|e| format!("创建文件失败: {}", e))?;
+
+    let mut downloaded: u64 = 0;
+    let mut stream = resp.bytes_stream();
+    use futures_util::StreamExt;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("下载失败: {}", e))?;
+        file.write_all(&chunk)
+            .map_err(|e| format!("写入文件失败: {}", e))?;
+        downloaded += chunk.len() as u64;
+
+        let percent = if total_size > 0 {
+            (downloaded as f64 / total_size as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        let _ = app_handle.emit(
+            "update-download-progress",
+            DownloadProgress {
+                downloaded,
+                total: total_size,
+                percent,
+            },
+        );
+    }
+
+    Ok(filepath.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn install_update(app_handle: tauri::AppHandle, file_path: String) -> Result<(), String> {
+    let path = std::path::Path::new(&file_path);
+    if !path.exists() {
+        return Err("安装包文件不存在".into());
+    }
+
+    std::process::Command::new(path)
+        .spawn()
+        .map_err(|e| format!("启动安装程序失败: {}", e))?;
+
+    app_handle.exit(0);
+    Ok(())
+}
+
 // ─── App Entry ────────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -1177,6 +1341,8 @@ async fn show_window(app_handle: tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -1188,7 +1354,7 @@ pub fn run() {
             // Window stays hidden until React renders (see src/main.tsx)
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![track_step, track, check_ip, show_window])
+        .invoke_handler(tauri::generate_handler![track_step, track, check_ip, show_window, check_update, download_update, install_update])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

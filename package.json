@@ -1,7 +1,7 @@
 {
   "name": "ce-tiaozhuan",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.3.3",
   "scripts": {
     "dev:renderer": "vite",
     "dev": "tauri dev",
@@ -10,8 +10,11 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-fs": "^2.5.1",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
