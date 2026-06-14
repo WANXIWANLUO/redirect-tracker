@@ -12,7 +12,7 @@ rust-version = "1.77.2"
 
 [lib]
 name = "app_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.6.2", features = [] }
@@ -23,8 +23,14 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
-reqwest = { version = "0.12", features = ["stream", "socks", "cookies", "gzip", "brotli", "deflate"] }
-tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["stream", "socks", "cookies", "gzip"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 regex = "1"
 url = "2"
 uuid = { version = "1", features = ["v4"] }
+
+[profile.release]
+strip = true        # 去除符号信息，大幅减小体积
+lto = true          # Link-Time Optimization，跨 crate 优化
+codegen-units = 1   # 单编译单元，更好的优化（编译变慢，体积更小）
+opt-level = "s"     # 优化体积而非速度（"z" 更激进但可能影响性能）
