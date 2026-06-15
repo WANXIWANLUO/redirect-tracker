@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { TrackResult, ProxyConfig, UAConfig, ThemeMode, CheckIpResponse, TrackStepResponse } from './types'
-import { load, save, replacePlaceholders, resetStackRandom } from './utils'
+import { load, save, replacePlaceholders, resetStackRandom, normalizeCountry } from './utils'
 import Sidebar from './components/Sidebar'
 import TrackInput from './components/TrackInput'
 import RedirectChain from './components/RedirectChain'
@@ -56,6 +56,8 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     save('theme', theme)
+    // Sync native title bar theme
+    getCurrentWindow().setTheme(theme === 'light' ? 'light' : 'dark')
   }, [theme])
 
   // Set window title with version
@@ -172,7 +174,7 @@ export default function App() {
             detectedIpVal = `${ipInfo.query} (${ipInfo.country} / ${ipInfo.countryCode})`
             setDetectedIp(detectedIpVal)
             // If proxy is selected (not direct) and country doesn't match, stop tracking
-            if (resolvedProxy && country && ipInfo.countryCode.toUpperCase() !== country.toUpperCase()) {
+            if (resolvedProxy && country && ipInfo.countryCode.toUpperCase() !== normalizeCountry(country).toUpperCase()) {
               ipCountryMismatch = true
             }
           } else {

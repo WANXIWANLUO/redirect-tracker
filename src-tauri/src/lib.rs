@@ -1322,6 +1322,7 @@ async fn install_update(app_handle: tauri::AppHandle, file_path: String) -> Resu
     }
 
     std::process::Command::new(path)
+        .arg("/UPDATE")
         .spawn()
         .map_err(|e| format!("启动安装程序失败: {}", e))?;
 
