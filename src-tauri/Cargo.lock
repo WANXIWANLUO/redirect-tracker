@@ -394,7 +394,7 @@ dependencies = [
 
 [[package]]
 name = "ce-tiaozhuan"
-version = "1.3.3"
+version = "1.3.4"
 dependencies = [
  "futures-util",
  "log",

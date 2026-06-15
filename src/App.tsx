@@ -206,9 +206,10 @@ export default function App() {
           checkIpUsed: checkIp,
           detectedIp: detectedIpVal || undefined,
         }
-        finalResult.alias = generateAlias(finalResult)
-        setCurrentResult(finalResult)
         setHistory(prev => {
+          const existing = prev.find(h => h.originalUrl === url)
+          finalResult.alias = (existing?.alias && existing.alias.trim()) ? existing.alias : generateAlias(finalResult)
+          setCurrentResult(finalResult)
           const idx = prev.findIndex(h => h.originalUrl === url)
           if (idx >= 0) {
             const next = [...prev]
@@ -299,9 +300,10 @@ export default function App() {
         checkIpUsed: checkIp,
         detectedIp: detectedIpVal || undefined,
       }
-      finalResult.alias = generateAlias(finalResult)
-      setCurrentResult(finalResult)
       setHistory(prev => {
+        const existing = prev.find(h => h.originalUrl === url)
+        finalResult.alias = (existing?.alias && existing.alias.trim()) ? existing.alias : generateAlias(finalResult)
+        setCurrentResult(finalResult)
         const idx = prev.findIndex(h => h.originalUrl === url)
         if (idx >= 0) {
           const next = [...prev]
