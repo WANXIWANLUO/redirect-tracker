@@ -10,6 +10,7 @@ import RedirectChain from './components/RedirectChain'
 import ProxyManager from './components/ProxyManager'
 import UAManager from './components/UAManager'
 import UpdateModal from './components/UpdateModal'
+import AboutModal from './components/AboutModal'
 
 interface UpdateInfo {
   available: boolean
@@ -49,6 +50,7 @@ export default function App() {
   const [showUaManager, setShowUaManager] = useState(false)
   const [inputUrl, setInputUrl] = useState('')
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [showAbout, setShowAbout] = useState(false)
 
 
 
@@ -421,6 +423,7 @@ export default function App() {
         onDelete={handleDeleteHistory}
         onClearAll={handleClearHistory}
         onRename={handleRenameHistory}
+        onAbout={() => setShowAbout(true)}
       />
 
       {/* Main content */}
@@ -484,6 +487,14 @@ export default function App() {
       {/* Update modal */}
       {updateInfo && (
         <UpdateModal info={updateInfo} onClose={() => setUpdateInfo(null)} />
+      )}
+
+      {/* About modal */}
+      {showAbout && (
+        <AboutModal
+          onUpdateFound={info => setUpdateInfo(info)}
+          onClose={() => setShowAbout(false)}
+        />
       )}
     </div>
   )
